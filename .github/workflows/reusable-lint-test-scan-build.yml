@@ -80,7 +80,8 @@ jobs:
             "${{ inputs.working-directory }}"
 
       - name: Scan vulnérabilités (Trivy)
-        uses: aquasecurity/trivy-action@0.24.0
+        # tag 0.24.0 retiré après l'incident de sécurité sur les tags trivy-action (migration vers le préfixe v + SHA pin)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: "${{ inputs.image-name }}:${{ github.sha }}"
           severity: ${{ inputs.severity-threshold }}
