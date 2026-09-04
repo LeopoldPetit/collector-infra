@@ -1,0 +1,57 @@
+{
+  "realm": "collector-shop",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "acheteur", "description": "Peut consulter le catalogue et acheter des articles" },
+      { "name": "vendeur", "description": "Peut publier et gérer ses propres articles" },
+      { "name": "admin", "description": "Administration de la plateforme" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "catalog-api",
+      "name": "collector-catalog-api",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "secret": "catalog-api-dev-secret",
+      "redirectUris": [],
+      "webOrigins": []
+    },
+    {
+      "clientId": "collector-frontend",
+      "name": "collector-frontend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"]
+    }
+  ],
+  "users": [
+    {
+      "username": "vendeur-demo",
+      "enabled": true,
+      "email": "vendeur-demo@collector.shop",
+      "credentials": [{ "type": "password", "value": "vendeur-demo", "temporary": false }],
+      "realmRoles": ["vendeur"]
+    },
+    {
+      "username": "acheteur-demo",
+      "enabled": true,
+      "email": "acheteur-demo@collector.shop",
+      "credentials": [{ "type": "password", "value": "acheteur-demo", "temporary": false }],
+      "realmRoles": ["acheteur"]
+    }
+  ]
+}
