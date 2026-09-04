@@ -47,7 +47,7 @@ jobs:
         run: npm run lint --if-present
 
       - name: Tests unitaires + couverture
-        run: npm test -- --coverage --if-present
+        run: npm test --if-present -- --coverage
 
       - name: Audit des dépendances (npm audit)
         run: npm audit --audit-level=high
