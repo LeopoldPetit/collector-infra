@@ -44,10 +44,24 @@ helm/
 ## Démarrage local
 
 ```bash
+cp .env.example .env
 docker compose up -d
 ```
 
 Démarre PostgreSQL, RabbitMQ, Keycloak et Vault en mode développement pour les autres services du projet.
+
+| Service | URL locale | Identifiants (dev) |
+|---|---|---|
+| PostgreSQL | `localhost:5432` | voir `.env` |
+| RabbitMQ (management) | http://localhost:15672 | voir `.env` |
+| Keycloak (admin console) | http://localhost:8080 | voir `.env` |
+| Vault (dev, non persistant) | http://localhost:8200 | token dans `.env` |
+
+Le realm `collector-shop` (rôles `acheteur`/`vendeur`/`admin`, clients `catalog-api` et `collector-frontend`, utilisateurs de démo) est importé automatiquement au démarrage de Keycloak depuis `realm/collector-shop-realm.json`.
+
+## Pipeline CI/CD réutilisable
+
+`.github/workflows/reusable-lint-test-scan-build.yml` est appelé depuis les workflows des autres repos via `workflow_call` (lint → tests + couverture → `npm audit` → build image Docker → scan Trivy). Il fait échouer la CI si le lint, les tests, l'audit de dépendances ou le scan Trivy détectent un problème au-delà du seuil configuré.
 
 ## Déploiement Kubernetes (Minikube)
 
