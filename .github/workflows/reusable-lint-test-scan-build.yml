@@ -1,0 +1,82 @@
+name: reusable-lint-test-scan-build
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Version de Node.js utilisée pour lint/test"
+        type: string
+        default: "20"
+      working-directory:
+        description: "Dossier du service (utile en cas de monorepo)"
+        type: string
+        default: "."
+      image-name:
+        description: "Nom de l'image Docker à builder (ex. ghcr.io/leopoldpetit/collector-catalog-api)"
+        type: string
+        required: true
+      dockerfile:
+        description: "Chemin du Dockerfile relatif au working-directory"
+        type: string
+        default: "Dockerfile"
+      severity-threshold:
+        description: "Sévérités Trivy qui font échouer le pipeline"
+        type: string
+        default: "CRITICAL,HIGH"
+
+jobs:
+  lint-test:
+    name: Lint + tests unitaires + couverture
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: "npm"
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Tests unitaires + couverture
+        run: npm test -- --coverage --if-present
+
+      - name: Audit des dépendances (npm audit)
+        run: npm audit --audit-level=high
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ inputs.image-name }}
+          path: ${{ inputs.working-directory }}/coverage
+          if-no-files-found: ignore
+
+  build-scan:
+    name: Build image Docker + scan Trivy
+    needs: lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image Docker
+        run: |
+          docker build \
+            -f "${{ inputs.working-directory }}/${{ inputs.dockerfile }}" \
+            -t "${{ inputs.image-name }}:${{ github.sha }}" \
+            "${{ inputs.working-directory }}"
+
+      - name: Scan vulnérabilités (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: "${{ inputs.image-name }}:${{ github.sha }}"
+          severity: ${{ inputs.severity-threshold }}
+          exit-code: "1"
+          ignore-unfixed: true
