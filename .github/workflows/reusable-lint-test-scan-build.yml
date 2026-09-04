@@ -50,12 +50,18 @@ jobs:
         run: npm test --if-present -- --coverage
 
       - name: Audit des dépendances (npm audit)
-        run: npm audit --audit-level=high
+        # --omit=dev : les vulnérabilités des outils de build/dev (ex. @nestjs/cli) ne sont jamais expédiées en production
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Nom d'artifact sécurisé
+        id: artifact-name
+        if: always()
+        run: echo "name=coverage-$(echo '${{ inputs.image-name }}' | tr -c 'a-zA-Z0-9._-' '-')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-${{ inputs.image-name }}
+          name: ${{ steps.artifact-name.outputs.name }}
           path: ${{ inputs.working-directory }}/coverage
           if-no-files-found: ignore
 
