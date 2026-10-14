@@ -1,0 +1,16 @@
+name: collector-frontend
+replicaCount: 1
+
+image:
+  repository: collector/frontend
+  tag: local
+  pullPolicy: Never
+
+port: 8080
+
+env: {}
+
+ingress:
+  enabled: true
+  host: shop.localhost
+  clusterIssuer: collector-selfsigned
