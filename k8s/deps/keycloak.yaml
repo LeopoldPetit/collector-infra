@@ -22,8 +22,18 @@ spec:
               value: admin
             - name: KEYCLOAK_ADMIN_PASSWORD
               value: admin_dev_password
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: jdbc:postgresql://postgres:5432/keycloak
+            - name: KC_DB_USERNAME
+              value: collector
+            - name: KC_DB_PASSWORD
+              value: collector_dev_password
             - name: KC_HOSTNAME
-              value: keycloak.collector.local
+              value: keycloak.localhost
+            - name: KC_HOSTNAME_PORT
+              value: "8443"
             - name: KC_HOSTNAME_STRICT
               value: "false"
             - name: KC_PROXY_HEADERS
@@ -59,10 +69,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - keycloak.collector.local
+        - keycloak.localhost
       secretName: keycloak-tls
   rules:
-    - host: keycloak.collector.local
+    - host: keycloak.localhost
       http:
         paths:
           - path: /
