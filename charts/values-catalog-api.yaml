@@ -12,7 +12,8 @@ env:
   PORT: "3000"
   DATABASE_URL: "postgresql://collector:collector_dev_password@postgres:5432/collector?schema=catalog"
   RABBITMQ_URL: "amqp://collector:collector_dev_password@rabbitmq:5672"
-  KEYCLOAK_ISSUER: "http://keycloak.collector.local/realms/collector-shop"
+  KEYCLOAK_ISSUER: "https://keycloak.collector.local/realms/collector-shop"
+  KEYCLOAK_JWKS_URL: "http://keycloak:8080/realms/collector-shop/protocol/openid-connect/certs"
 
 ingress:
   enabled: true
