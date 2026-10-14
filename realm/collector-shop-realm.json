@@ -34,8 +34,8 @@
       "bearerOnly": false,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:5173/*"],
-      "webOrigins": ["http://localhost:5173"]
+      "redirectUris": ["http://localhost:5173/*", "https://shop.localhost:8443/*"],
+      "webOrigins": ["http://localhost:5173", "https://shop.localhost:8443"]
     }
   ],
   "users": [
