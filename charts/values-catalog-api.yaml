@@ -1,0 +1,21 @@
+name: collector-catalog-api
+replicaCount: 1
+
+image:
+  repository: collector/catalog-api
+  tag: local
+  pullPolicy: Never
+
+port: 3000
+
+env:
+  PORT: "3000"
+  DATABASE_URL: "postgresql://collector:collector_dev_password@postgres:5432/collector?schema=catalog"
+  RABBITMQ_URL: "amqp://collector:collector_dev_password@rabbitmq:5672"
+  KEYCLOAK_ISSUER: "https://keycloak.localhost:8443/realms/collector-shop"
+  KEYCLOAK_JWKS_URL: "http://keycloak:8080/realms/collector-shop/protocol/openid-connect/certs"
+
+ingress:
+  enabled: true
+  host: api.localhost
+  clusterIssuer: collector-selfsigned

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: collector-service
+description: Chart générique des services Collector (API catalogue, worker de modération)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

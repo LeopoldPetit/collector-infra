@@ -1,0 +1,19 @@
+name: collector-service
+replicaCount: 1
+
+image:
+  repository: collector/service
+  tag: local
+  pullPolicy: Never
+
+# 0 = pas de Service ni d'Ingress (worker)
+port: 0
+
+env: {}
+
+ingress:
+  enabled: false
+  host: service.collector.local
+  clusterIssuer: collector-selfsigned
+
+resources: {}

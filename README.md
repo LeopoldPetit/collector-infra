@@ -65,12 +65,47 @@ Le realm `collector-shop` (rôles `acheteur`/`vendeur`/`admin`, clients `catalog
 
 ## Déploiement Kubernetes (Minikube)
 
+Prérequis : Docker (2 CPU minimum), `minikube`, `kubectl`, `helm`.
+
 ```bash
-minikube start
-helm install collector-catalog-api ./helm/collector-catalog-api
-helm install collector-moderation-worker ./helm/collector-moderation-worker
-helm install collector-frontend ./helm/collector-frontend
+# 1. Cluster et Ingress
+minikube start --driver=docker --cpus=2 --memory=3072
+minikube addons enable ingress
+
+# 2. cert-manager et émetteur auto-signé
+helm repo add jetstack https://charts.jetstack.io && helm repo update
+helm install cert-manager jetstack/cert-manager --version v1.21.2 \
+  --namespace cert-manager --create-namespace --set crds.enabled=true --wait
+kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
+
+# 3. Dépendances (Postgres persistant, RabbitMQ, Keycloak sur Postgres)
+kubectl create configmap keycloak-realm --from-file=realm/collector-shop-realm.json
+kubectl apply -f k8s/deps/
 ```
+
+Les images d'infrastructure (`postgres:16-alpine`, `rabbitmq:3-management-alpine`, `quay.io/keycloak/keycloak:24.0`) et celles de cert-manager et d'ingress-nginx doivent être disponibles dans le cluster. Sur un réseau qui intercepte TLS, les télécharger sur l'hôte puis les charger avec `minikube image load <image:tag>` (sans `@sha256` dans le nom).
+
+### Services
+
+```bash
+helm install catalog-api charts/collector-service -f charts/values-catalog-api.yaml
+helm install moderation-worker charts/collector-service -f charts/values-moderation-worker.yaml
+```
+
+Les images `collector/catalog-api:local` et `collector/moderation-worker:local` doivent être chargées avec `minikube image load`. La base doit être migrée une fois avec Prisma (`DATABASE_URL` pointant sur le Postgres du cluster, via `kubectl port-forward svc/postgres 15432:5432`).
+
+### Accès
+
+Les hôtes `*.localhost` résolvent vers 127.0.0.1 dans Chrome et Firefox, sans modifier `/etc/hosts`. Exposer l'Ingress puis ouvrir les URLs avec le port 8443 :
+
+```bash
+kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8443:443
+```
+
+- API : https://api.localhost:8443/articles?status=published
+- Keycloak : https://keycloak.localhost:8443
+
+Le certificat est auto-signé : le navigateur affiche un avertissement à accepter.
 
 ## Documentation liée
 

@@ -34,13 +34,15 @@
       "bearerOnly": false,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:5173/*"],
-      "webOrigins": ["http://localhost:5173"]
+      "redirectUris": ["http://localhost:5173/*", "https://shop.localhost:8443/*"],
+      "webOrigins": ["http://localhost:5173", "https://shop.localhost:8443"]
     }
   ],
   "users": [
     {
       "username": "vendeur-demo",
+      "firstName": "Vendeur",
+      "lastName": "Demo",
       "enabled": true,
       "email": "vendeur-demo@collector.shop",
       "credentials": [{ "type": "password", "value": "vendeur-demo", "temporary": false }],
@@ -48,6 +50,8 @@
     },
     {
       "username": "acheteur-demo",
+      "firstName": "Acheteur",
+      "lastName": "Demo",
       "enabled": true,
       "email": "acheteur-demo@collector.shop",
       "credentials": [{ "type": "password", "value": "acheteur-demo", "temporary": false }],

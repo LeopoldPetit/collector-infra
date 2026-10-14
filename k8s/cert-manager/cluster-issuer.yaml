@@ -1,0 +1,7 @@
+# Émetteur auto-signé pour Minikube ; en cible cloud, remplacer par un ClusterIssuer Let's Encrypt.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: collector-selfsigned
+spec:
+  selfSigned: {}
