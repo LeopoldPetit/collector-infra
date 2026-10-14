@@ -1,0 +1,12 @@
+name: collector-moderation-worker
+replicaCount: 1
+
+image:
+  repository: collector/moderation-worker
+  tag: local
+  pullPolicy: Never
+
+port: 0
+
+env:
+  RABBITMQ_URL: "amqp://collector:collector_dev_password@rabbitmq:5672"
