@@ -41,6 +41,8 @@
   "users": [
     {
       "username": "vendeur-demo",
+      "firstName": "Vendeur",
+      "lastName": "Demo",
       "enabled": true,
       "email": "vendeur-demo@collector.shop",
       "credentials": [{ "type": "password", "value": "vendeur-demo", "temporary": false }],
@@ -48,6 +50,8 @@
     },
     {
       "username": "acheteur-demo",
+      "firstName": "Acheteur",
+      "lastName": "Demo",
       "enabled": true,
       "email": "acheteur-demo@collector.shop",
       "credentials": [{ "type": "password", "value": "acheteur-demo", "temporary": false }],
