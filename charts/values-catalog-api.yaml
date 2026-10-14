@@ -2,9 +2,9 @@ name: collector-catalog-api
 replicaCount: 1
 
 image:
-  repository: collector/catalog-api
-  tag: local
-  pullPolicy: Never
+  repository: ghcr.io/leopoldpetit/collector-catalog-api
+  tag: main
+  pullPolicy: IfNotPresent
 
 port: 3000
 

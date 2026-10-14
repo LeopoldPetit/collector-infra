@@ -2,9 +2,9 @@ name: collector-moderation-worker
 replicaCount: 1
 
 image:
-  repository: collector/moderation-worker
-  tag: local
-  pullPolicy: Never
+  repository: ghcr.io/leopoldpetit/collector-moderation-worker
+  tag: main
+  pullPolicy: IfNotPresent
 
 port: 0
 

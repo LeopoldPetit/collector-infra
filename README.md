@@ -92,7 +92,7 @@ helm install catalog-api charts/collector-service -f charts/values-catalog-api.y
 helm install moderation-worker charts/collector-service -f charts/values-moderation-worker.yaml
 ```
 
-Les images `collector/catalog-api:local` et `collector/moderation-worker:local` doivent être chargées avec `minikube image load`. La base doit être migrée une fois avec Prisma (`DATABASE_URL` pointant sur le Postgres du cluster, via `kubectl port-forward svc/postgres 15432:5432`).
+Les images des services viennent de GHCR (`ghcr.io/leopoldpetit/collector-catalog-api:main` et `ghcr.io/leopoldpetit/collector-moderation-worker:main`), publiées par le CI sur `main`. Minikube ne peut pas les tirer lui-même sur un réseau qui intercepte TLS : les tirer sur l'hôte puis les charger, par exemple `docker pull ghcr.io/leopoldpetit/collector-catalog-api:main && minikube image load ghcr.io/leopoldpetit/collector-catalog-api:main`. Les packages GHCR doivent être publics, ou être tirés après `docker login ghcr.io`. La base doit être migrée une fois avec Prisma (`DATABASE_URL` pointant sur le Postgres du cluster, via `kubectl port-forward svc/postgres 15432:5432`).
 
 ### Accès
 
