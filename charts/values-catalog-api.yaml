@@ -14,6 +14,7 @@ env:
   RABBITMQ_URL: "amqp://collector:collector_dev_password@rabbitmq:5672"
   KEYCLOAK_ISSUER: "https://keycloak.localhost:8443/realms/collector-shop"
   KEYCLOAK_JWKS_URL: "http://keycloak:8080/realms/collector-shop/protocol/openid-connect/certs"
+  CORS_ORIGIN: "https://shop.localhost:8443"
 
 ingress:
   enabled: true
