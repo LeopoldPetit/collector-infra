@@ -27,10 +27,10 @@ on:
         description: "Publier l'image sur GHCR après scan (effectif uniquement sur push vers main)"
         type: boolean
         default: false
-        build-args:
-          description: "Arguments de build Docker, un par ligne (ex. VITE_API_URL=https://api.localhost:8443)"
-          type: string
-          default: ""
+      build-args:
+        description: "Arguments de build Docker, un par ligne (ex. VITE_API_URL=https://api.localhost:8443)"
+        type: string
+        default: ""
 
 jobs:
   lint-test:
