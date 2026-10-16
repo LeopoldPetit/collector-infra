@@ -2,9 +2,9 @@ name: collector-frontend
 replicaCount: 1
 
 image:
-  repository: collector/frontend
-  tag: local
-  pullPolicy: Never
+  repository: ghcr.io/leopoldpetit/collector-frontend
+  tag: c53891575ae29b9fa970ada8f1bf07a96257a3f9
+  pullPolicy: IfNotPresent
 
 port: 8080
 
