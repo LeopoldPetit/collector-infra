@@ -1,6 +1,9 @@
 name: collector-service
 replicaCount: 1
 
+# Secrets de pull (ex. ghcr-pull) pour les images privées
+imagePullSecrets: []
+
 image:
   repository: collector/service
   tag: local
