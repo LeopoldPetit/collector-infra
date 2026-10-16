@@ -1,0 +1,85 @@
+# Profil allégé : Minikube dispose de peu de RAM (les services métiers y tournent déjà).
+alertmanager:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: false
+
+defaultRules:
+  create: false
+
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeProxy:
+  enabled: false
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+  tls:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+prometheus:
+  prometheusSpec:
+    retention: 12h
+    scrapeInterval: 30s
+    # Sélection de tous les PodMonitor/ServiceMonitor, y compris hors du namespace monitoring
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorNamespaceSelector: {}
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+grafana:
+  defaultDashboardsEnabled: false
+  admin:
+    # Secret créé hors repo (voir README) : aucun mot de passe en clair ici
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      url: http://loki.monitoring.svc.cluster.local:3100
+      access: proxy
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.localhost
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.localhost
+    annotations:
+      cert-manager.io/cluster-issuer: collector-selfsigned
