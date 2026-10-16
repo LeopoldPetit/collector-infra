@@ -129,7 +129,10 @@ helm install loki grafana/loki --version 7.3.0 -n monitoring -f charts/monitorin
 helm install promtail grafana/promtail --version 6.17.1 -n monitoring -f charts/monitoring/promtail-values.yaml
 
 # Métriques de l'Ingress et dashboard Grafana
-kubectl apply -f k8s/monitoring/ingress-nginx-podmonitor.yaml
+kubectl apply -f k8s/monitoring/ingress-nginx-metrics.yaml
+# Minikube : l'addon ingress-nginx n'exporte pas nginx_ingress_controller_* sans ce flag
+kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type=json \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--enable-metrics=true"}]'
 kubectl -n monitoring create configmap collector-shop-dashboard \
   --from-file=collector-shop.json=charts/monitoring/dashboards/collector-shop.json
 kubectl -n monitoring label configmap collector-shop-dashboard grafana_dashboard=1
