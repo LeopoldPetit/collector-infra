@@ -107,6 +107,38 @@ kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 8443:443
 
 Le certificat est auto-signé : le navigateur affiche un avertissement à accepter.
 
+### Observabilité (Prometheus, Grafana, Loki)
+
+Prérequis : la VM Docker doit disposer d'au moins 8 Go de RAM (Docker Desktop > Settings > Resources), la stack de supervision ajoute environ 1 Go à la charge du cluster.
+
+```bash
+kubectl create namespace monitoring
+# Mot de passe Grafana généré localement, jamais versionné
+kubectl -n monitoring create secret generic grafana-admin \
+  --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 24)"
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts && helm repo update
+
+# Prometheus + Grafana (version épinglée)
+helm install kps prometheus-community/kube-prometheus-stack --version 92.9.0 \
+  -n monitoring -f charts/monitoring/kube-prometheus-stack-values.yaml --wait
+
+# Logs : Loki (mono-binaire) + Promtail
+helm install loki grafana/loki --version 7.3.0 -n monitoring -f charts/monitoring/loki-values.yaml --wait
+helm install promtail grafana/promtail --version 6.17.1 -n monitoring -f charts/monitoring/promtail-values.yaml
+
+# Métriques de l'Ingress et dashboard Grafana
+kubectl apply -f k8s/monitoring/ingress-nginx-podmonitor.yaml
+kubectl -n monitoring create configmap collector-shop-dashboard \
+  --from-file=collector-shop.json=charts/monitoring/dashboards/collector-shop.json
+kubectl -n monitoring label configmap collector-shop-dashboard grafana_dashboard=1
+```
+
+Les images (`quay.io/prometheus/prometheus`, `quay.io/prometheus-operator/*`, `docker.io/grafana/*`, `quay.io/kiwigrid/k8s-sidecar`, `docker.io/kiwigrid/k8s-sidecar`) doivent être chargées avec `minikube image load` comme les autres images.
+
+Accès Grafana : https://grafana.localhost:8443 (après le port-forward de l'Ingress). Le dashboard « Collector.shop - Observabilité » regroupe latence, erreurs 5xx, résultats de modération et logs.
+
 ## Documentation liée
 
 Voir le repo [`collector-docs`](https://github.com/LeopoldPetit/collector-docs) pour le plan général, l'architecture détaillée et le backlog complet du projet.
