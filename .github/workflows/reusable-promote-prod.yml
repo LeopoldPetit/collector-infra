@@ -1,0 +1,78 @@
+name: reusable-promote-prod
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: "Nom du service dans Artifact Registry (ex. collector-catalog-api)"
+        type: string
+        required: true
+      gcp-project-id:
+        description: "Projet GCP hébergeant Artifact Registry"
+        type: string
+        default: ""
+      gcp-region:
+        description: "Région Artifact Registry"
+        type: string
+        default: "europe-west1"
+      artifact-repository:
+        description: "Dépôt Docker dans Artifact Registry"
+        type: string
+        default: "collector"
+      workload-identity-provider:
+        description: "Ressource du provider Workload Identity Federation"
+        type: string
+        default: ""
+      service-account:
+        description: "Compte de service GCP utilisé par la CI"
+        type: string
+        default: ""
+
+jobs:
+  promote:
+    name: Ajouter les tags prod et version à l'image staging
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE: ${{ inputs.gcp-region }}-docker.pkg.dev/${{ inputs.gcp-project-id }}/${{ inputs.artifact-repository }}/${{ inputs.image-name }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Vérifier que le commit de la release est sur main
+        run: |
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Le commit $GITHUB_SHA de la release n'est pas sur main"
+            exit 1
+          fi
+
+      - name: Authentification GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Résoudre le digest de l'image staging
+        id: digest
+        run: |
+          DIGEST=$(gcloud artifacts docker images describe "$IMAGE:$GITHUB_SHA" --format='value(image_summary.digest)')
+          if [ -z "$DIGEST" ]; then
+            echo "::error::Image $IMAGE:$GITHUB_SHA absente d'Artifact Registry (commit non buildé sur main ?)"
+            exit 1
+          fi
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Ajouter les tags prod et version au même digest (sans rebuild)
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          gcloud artifacts docker tags add "$IMAGE@$DIGEST" "$IMAGE:prod"
+          gcloud artifacts docker tags add "$IMAGE@$DIGEST" "$IMAGE:$RELEASE_TAG"

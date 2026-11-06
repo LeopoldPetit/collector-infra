@@ -12,9 +12,29 @@ on:
         type: string
         default: "."
       image-name:
-        description: "Nom de l'image Docker à builder (ex. ghcr.io/leopoldpetit/collector-catalog-api)"
+        description: "Nom du service, utilisé comme nom d'image dans Artifact Registry (ex. collector-catalog-api)"
         type: string
         required: true
+      gcp-project-id:
+        description: "Projet GCP hébergeant Artifact Registry"
+        type: string
+        default: ""
+      gcp-region:
+        description: "Région Artifact Registry"
+        type: string
+        default: "europe-west1"
+      artifact-repository:
+        description: "Dépôt Docker dans Artifact Registry"
+        type: string
+        default: "collector"
+      workload-identity-provider:
+        description: "Ressource du provider Workload Identity Federation"
+        type: string
+        default: ""
+      service-account:
+        description: "Compte de service GCP utilisé par la CI pour pousser les images"
+        type: string
+        default: ""
       dockerfile:
         description: "Chemin du Dockerfile relatif au working-directory"
         type: string
@@ -24,7 +44,7 @@ on:
         type: string
         default: "CRITICAL,HIGH"
       push-image:
-        description: "Publier l'image sur GHCR après scan (effectif uniquement sur push vers main)"
+        description: "Publier l'image sur Artifact Registry après scan (effectif uniquement sur push vers main, tag staging)"
         type: boolean
         default: false
       build-args:
@@ -74,16 +94,59 @@ jobs:
           if-no-files-found: ignore
 
   build-scan:
-    name: Build image Docker + scan Trivy
+    name: Build image Docker + scan Trivy + publication Artifact Registry
     needs: lint-test
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
+    env:
+      PUBLISH: ${{ inputs.push-image && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      IMAGE: ${{ inputs.gcp-region }}-docker.pkg.dev/${{ inputs.gcp-project-id }}/${{ inputs.artifact-repository }}/${{ inputs.image-name }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build image Docker
+      - name: Authentification GCP (Workload Identity Federation)
+        if: env.PUBLISH == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+
+      - name: Configurer l'accès Docker à Artifact Registry
+        if: env.PUBLISH == 'true'
+        run: gcloud auth configure-docker "${{ inputs.gcp-region }}-docker.pkg.dev" --quiet
+
+      - name: Configurer QEMU (émulation arm64)
+        if: env.PUBLISH == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Configurer Buildx
+        if: env.PUBLISH == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Publier l'image multi-architecture (amd64, arm64) avec tag du commit
+        id: publish
+        if: env.PUBLISH == 'true'
+        env:
+          BUILD_ARGS: ${{ inputs.build-args }}
+        run: |
+          ARGS=()
+          while IFS= read -r arg; do
+            if [ -n "$arg" ]; then ARGS+=(--build-arg "$arg"); fi
+          done <<< "$BUILD_ARGS"
+          docker buildx build \
+            "${ARGS[@]}" \
+            --platform linux/amd64,linux/arm64 \
+            -f "${{ inputs.working-directory }}/${{ inputs.dockerfile }}" \
+            -t "$IMAGE:${{ github.sha }}" \
+            --push \
+            "${{ inputs.working-directory }}"
+          echo "ref=$IMAGE:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image Docker locale (PR)
+        id: build-local
+        if: env.PUBLISH != 'true'
         env:
           BUILD_ARGS: ${{ inputs.build-args }}
         run: |
@@ -96,46 +159,17 @@ jobs:
             -f "${{ inputs.working-directory }}/${{ inputs.dockerfile }}" \
             -t "${{ inputs.image-name }}:${{ github.sha }}" \
             "${{ inputs.working-directory }}"
+          echo "ref=${{ inputs.image-name }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Scan vulnérabilités (Trivy)
         # tags sans préfixe "v" (ex. 0.24.0, 0.36.0) n'existent plus depuis la migration de trivy-action vers les tags "vX.Y.Z"
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: "${{ inputs.image-name }}:${{ github.sha }}"
+          image-ref: "${{ steps.publish.outputs.ref || steps.build-local.outputs.ref }}"
           severity: ${{ inputs.severity-threshold }}
           exit-code: "1"
           ignore-unfixed: true
 
-      - name: Connexion à GHCR
-        if: inputs.push-image && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configurer QEMU (émulation arm64)
-        if: inputs.push-image && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/setup-qemu-action@v3
-
-      - name: Configurer Buildx
-        if: inputs.push-image && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Publier l'image multi-architecture (amd64, arm64)
-        if: inputs.push-image && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          BUILD_ARGS: ${{ inputs.build-args }}
-        run: |
-          ARGS=()
-          while IFS= read -r arg; do
-            if [ -n "$arg" ]; then ARGS+=(--build-arg "$arg"); fi
-          done <<< "$BUILD_ARGS"
-          docker buildx build \
-            "${ARGS[@]}" \
-            --platform linux/amd64,linux/arm64 \
-            -f "${{ inputs.working-directory }}/${{ inputs.dockerfile }}" \
-            -t "${{ inputs.image-name }}:${{ github.sha }}" \
-            -t "${{ inputs.image-name }}:main" \
-            --push \
-            "${{ inputs.working-directory }}"
+      - name: Tag staging (uniquement si le scan est passé)
+        if: env.PUBLISH == 'true'
+        run: gcloud artifacts docker tags add "$IMAGE:${{ github.sha }}" "$IMAGE:staging"
