@@ -84,7 +84,7 @@ jobs:
       - name: Nom d'artifact sécurisé
         id: artifact-name
         if: always()
-        run: echo "name=coverage-$(echo '${{ inputs.image-name }}' | tr -c 'a-zA-Z0-9._-' '-')" >> "$GITHUB_OUTPUT"
+        run: echo "name=coverage-$(printf '%s' '${{ inputs.image-name }}' | tr -c 'a-zA-Z0-9._-' '-')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -106,6 +106,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configurer Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image Docker (amd64, chargée localement pour le scan)
+        env:
+          BUILD_ARGS: ${{ inputs.build-args }}
+        run: |
+          ARGS=()
+          while IFS= read -r arg; do
+            if [ -n "$arg" ]; then ARGS+=(--build-arg "$arg"); fi
+          done <<< "$BUILD_ARGS"
+          docker buildx build \
+            "${ARGS[@]}" \
+            --platform linux/amd64 \
+            --load \
+            --cache-to type=gha,mode=max \
+            -f "${{ inputs.working-directory }}/${{ inputs.dockerfile }}" \
+            -t "$IMAGE:${{ github.sha }}" \
+            "${{ inputs.working-directory }}"
+
+      - name: Scan vulnérabilités (Trivy) sur l'image locale
+        # tags sans préfixe "v" (ex. 0.24.0, 0.36.0) n'existent plus depuis la migration de trivy-action vers les tags "vX.Y.Z"
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "${{ env.IMAGE }}:${{ github.sha }}"
+          severity: ${{ inputs.severity-threshold }}
+          exit-code: "1"
+          ignore-unfixed: true
+
       - name: Authentification GCP (Workload Identity Federation)
         if: env.PUBLISH == 'true'
         uses: google-github-actions/auth@v2
@@ -121,12 +150,7 @@ jobs:
         if: env.PUBLISH == 'true'
         uses: docker/setup-qemu-action@v3
 
-      - name: Configurer Buildx
-        if: env.PUBLISH == 'true'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Publier l'image multi-architecture (amd64, arm64) avec tag du commit
-        id: publish
+      - name: Publier l'image multi-architecture (amd64, arm64) après scan réussi
         if: env.PUBLISH == 'true'
         env:
           BUILD_ARGS: ${{ inputs.build-args }}
@@ -138,38 +162,12 @@ jobs:
           docker buildx build \
             "${ARGS[@]}" \
             --platform linux/amd64,linux/arm64 \
+            --cache-from type=gha \
             -f "${{ inputs.working-directory }}/${{ inputs.dockerfile }}" \
             -t "$IMAGE:${{ github.sha }}" \
             --push \
             "${{ inputs.working-directory }}"
-          echo "ref=$IMAGE:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      - name: Build image Docker locale (PR)
-        id: build-local
-        if: env.PUBLISH != 'true'
-        env:
-          BUILD_ARGS: ${{ inputs.build-args }}
-        run: |
-          ARGS=()
-          while IFS= read -r arg; do
-            if [ -n "$arg" ]; then ARGS+=(--build-arg "$arg"); fi
-          done <<< "$BUILD_ARGS"
-          docker build \
-            "${ARGS[@]}" \
-            -f "${{ inputs.working-directory }}/${{ inputs.dockerfile }}" \
-            -t "${{ inputs.image-name }}:${{ github.sha }}" \
-            "${{ inputs.working-directory }}"
-          echo "ref=${{ inputs.image-name }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
-
-      - name: Scan vulnérabilités (Trivy)
-        # tags sans préfixe "v" (ex. 0.24.0, 0.36.0) n'existent plus depuis la migration de trivy-action vers les tags "vX.Y.Z"
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: "${{ steps.publish.outputs.ref || steps.build-local.outputs.ref }}"
-          severity: ${{ inputs.severity-threshold }}
-          exit-code: "1"
-          ignore-unfixed: true
-
-      - name: Tag staging (uniquement si le scan est passé)
+      - name: Tag staging
         if: env.PUBLISH == 'true'
         run: gcloud artifacts docker tags add "$IMAGE:${{ github.sha }}" "$IMAGE:staging"
